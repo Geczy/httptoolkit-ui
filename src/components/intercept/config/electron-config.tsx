@@ -139,6 +139,9 @@ class ElectronConfig extends React.Component<{
       this.selectApplication();
       // Don't expand for selection, unless we're a mac (where the instructions might be useful).
       if (platform !== "mac") this.props.closeSelf();
+    } else {
+      // We have previous apps, so we can just run the first one.
+      this.runApplication(previousElectronAppPaths[0]);
     }
   }
 
@@ -178,26 +181,6 @@ class ElectronConfig extends React.Component<{
 
     return (
       <ConfigContainer>
-        <p>
-          Start an Electron {binary} with HTTP Toolkit's settings injected, to
-          intercept all its HTTP &amp; HTTPS traffic.
-        </p>
-        {platform === "mac" && previousElectronAppPaths.length < 2 && (
-          <p>
-            For .app bundles, enter either the bundle name (with or without
-            .app) or the full path to the executable itself, typically stored in
-            Contents/MacOS inside the bundle.
-          </p>
-        )}
-        <p>
-          {previousElectronAppPaths.length
-            ? `You can also rerun a previously started ${binary}, using the buttons below`
-            : `Once you've run ${binaryArticle} ${binary}, it'll be saved and shown here so you can rerun it later`}
-          .
-        </p>
-
-        <Spacer />
-
         <SelectAndInterceptButton onClick={this.selectApplication}>
           Select {binaryArticle} {binary}
         </SelectAndInterceptButton>
