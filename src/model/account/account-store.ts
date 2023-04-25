@@ -153,9 +153,7 @@ export class AccountStore {
     // Is the user a subscribed user whose payments are failing? Keep them
     // in an intermediate state so they can fix it (for now, until payment
     // retries fail, and their subscription cancels & expires completely).
-    return (
-      this.user.subscription?.status === "past_due" && this.isStatusUnexpired
-    );
+    return false;
   }
 
   @computed get userHasSubscription() {
@@ -165,11 +163,7 @@ export class AccountStore {
   @computed get mightBePaidUser() {
     // Like isPaidUser, but returns true for users who have subscription data
     // locally that's expired, until we successfully make a first check.
-    return (
-      this.user.subscription?.status &&
-      this.user.subscription?.status !== "past_due" &&
-      (this.isStatusUnexpired || this.accountDataLastUpdated === 0)
-    );
+    return true;
   }
 
   getPro = flow(
