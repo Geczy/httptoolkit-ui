@@ -1,223 +1,229 @@
-import * as _ from 'lodash';
-import * as React from 'react';
-import { observer, inject } from 'mobx-react';
-import { action } from 'mobx';
+import * as _ from "lodash";
+import * as React from "react";
+import { observer, inject } from "mobx-react";
+import { action } from "mobx";
 
-import { styled } from '../../../styles';
-import { Icon } from '../../../icons';
-import { trackEvent } from '../../../metrics';
+import { styled } from "../../../styles";
+import { Icon } from "../../../icons";
+import { trackEvent } from "../../../metrics";
 
-import { Interceptor } from '../../../model/interception/interceptors';
-import { UiStore } from '../../../model/ui-store';
+import { Interceptor } from "../../../model/interception/interceptors";
+import { UiStore } from "../../../model/ui-store";
 
-import { uploadFile } from '../../../util/ui';
-import { Button, SecondaryButton, UnstyledButton } from '../../common/inputs';
+import { uploadFile } from "../../../util/ui";
+import { Button, SecondaryButton, UnstyledButton } from "../../common/inputs";
 
 const ConfigContainer = styled.div`
-    user-select: text;
+  user-select: text;
 
-    > p {
-        line-height: 1.2;
+  > p {
+    line-height: 1.2;
 
-        &:not(:last-child) {
-            margin-bottom: 10px;
-        }
+    &:not(:last-child) {
+      margin-bottom: 10px;
     }
+  }
 
-    height: 100%;
-    display: flex;
-    flex-direction: column;
-    justify-content: start;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: start;
 `;
 
 const Spacer = styled.div`
-    flex: 1 1 100%;
+  flex: 1 1 100%;
 `;
 
 const Hr = styled.hr`
-    width: 100%;
-    margin: 0 0 10px 0;
-    border-top: solid 1px ${p => p.theme.containerBorder};
+  width: 100%;
+  margin: 0 0 10px 0;
+  border-top: solid 1px ${(p) => p.theme.containerBorder};
 `;
 
 const SelectAndInterceptButton = styled(Button)`
-    font-size: ${p => p.theme.textSize};
-    font-weight: bold;
-    padding: 10px 24px;
+  font-size: ${(p) => p.theme.textSize};
+  font-weight: bold;
+  padding: 10px 24px;
 
-    width: 100%;
-    flex-shrink: 0;
+  width: 100%;
+  flex-shrink: 0;
 
-    &:not(:last-child) {
-        margin-bottom: 10px;
-    }
+  &:not(:last-child) {
+    margin-bottom: 10px;
+  }
 `;
 
 const RememberedOption = styled.div`
-    display: flex;
-    flex-direction: row;
-    align-items: center;
+  display: flex;
+  flex-direction: row;
+  align-items: center;
 
-    &:not(:last-child) {
-        margin-bottom: 10px;
-    }
+  &:not(:last-child) {
+    margin-bottom: 10px;
+  }
 
-    flex-shrink: 0;
+  flex-shrink: 0;
 `;
 
 const InterceptButton = styled(SecondaryButton)`
-    font-size: ${p => p.theme.textSize};
-    font-weight: bold;
-    padding: 10px 24px;
+  font-size: ${(p) => p.theme.textSize};
+  font-weight: bold;
+  padding: 10px 24px;
 
-    width: 100%;
-    word-break: break-word;
+  width: 100%;
+  word-break: break-word;
 `;
 
 const ForgetPathButton = styled(UnstyledButton)`
-    &:hover {
-        opacity: 0.6;
-    }
+  &:hover {
+    opacity: 0.6;
+  }
 `;
 
-const platform = navigator.platform.startsWith('Mac')
-        ? 'mac'
-    : navigator.platform.startsWith('Win')
-        ? 'win'
-    : navigator.platform.includes('Linux')
-        ? 'linux'
-    : 'unknown';
+const platform = navigator.platform.startsWith("Mac")
+  ? "mac"
+  : navigator.platform.startsWith("Win")
+  ? "win"
+  : navigator.platform.includes("Linux")
+  ? "linux"
+  : "unknown";
 
 function getWordForBinary() {
-    if (platform === 'mac') return 'application';
-    if (platform === 'win') return 'exe';
-    if (platform === 'linux') return 'binary';
-    else return 'application';
+  if (platform === "mac") return "application";
+  if (platform === "win") return "exe";
+  if (platform === "linux") return "binary";
+  else return "application";
 }
 
 function getArticleForBinary(binaryName: string) {
-    if (binaryName[0] === 'a' || binaryName[0] === 'e') return 'an';
-    else return 'a';
+  if (binaryName[0] === "a" || binaryName[0] === "e") return "an";
+  else return "a";
 }
 
 function getReadablePath(path: string) {
-    if (platform === 'win') {
-        // Windows exes generally have meaningful names, so just use that
-        return _.last(path.split('\\'))!;
+  if (platform === "win") {
+    // Windows exes generally have meaningful names, so just use that
+    return _.last(path.split("\\"))!;
+  } else {
+    const pathParts = path.split("/").filter(
+      (p) => p !== "bin" && p !== "run" // Drop any useless generic bits
+    );
+
+    const appPart = _.find(pathParts, (p) => p.endsWith(".app"));
+
+    if (appPart) {
+      // For Mac apps, we drop the (normally invisible) app extension
+      return appPart.slice(0, -4);
     } else {
-        const pathParts = path.split('/').filter(
-            p => p !== 'bin' && p !== 'run' // Drop any useless generic bits
-        );
-
-        const appPart = _.find(pathParts, p => p.endsWith('.app'));
-
-        if (appPart) {
-            // For Mac apps, we drop the (normally invisible) app extension
-            return appPart.slice(0, -4);
-        } else {
-            // Otherwise it's probably a bare binary - we're dropped useless names, so this should work
-            return pathParts[pathParts.length - 1];
-        }
+      // Otherwise it's probably a bare binary - we're dropped useless names, so this should work
+      return pathParts[pathParts.length - 1];
     }
+  }
 }
 
-@inject('uiStore')
+@inject("uiStore")
 @observer
 class ElectronConfig extends React.Component<{
-    interceptor: Interceptor,
-    activateInterceptor: (options: { pathToApplication: string }) => Promise<void>,
-    reportStarted: () => void,
-    reportSuccess: (options?: { showRequests?: boolean }) => void,
-    closeSelf: () => void,
-    uiStore?: UiStore
+  interceptor: Interceptor;
+  activateInterceptor: (options: {
+    pathToApplication: string;
+  }) => Promise<void>;
+  reportStarted: () => void;
+  reportSuccess: (options?: { showRequests?: boolean }) => void;
+  closeSelf: () => void;
+  uiStore?: UiStore;
 }> {
+  async componentDidMount() {
+    const { previousElectronAppPaths } = this.props.uiStore!;
+    if (previousElectronAppPaths.length === 0) {
+      this.selectApplication();
+      // Don't expand for selection, unless we're a mac (where the instructions might be useful).
+      if (platform !== "mac") this.props.closeSelf();
+    }
+  }
 
-    async componentDidMount() {
-        const { previousElectronAppPaths } = this.props.uiStore!;
-        if (previousElectronAppPaths.length === 0) {
-            this.selectApplication();
-            // Don't expand for selection, unless we're a mac (where the instructions might be useful).
-            if (platform !== 'mac') this.props.closeSelf();
-        }
+  selectApplication = async () => {
+    const pathToApplication = await uploadFile("path");
+
+    if (!pathToApplication) {
+      this.props.closeSelf();
+      return;
     }
 
-    selectApplication = async () => {
-        const pathToApplication = await uploadFile('path');
+    this.runApplication(pathToApplication).then(() => {
+      // Activated successfully! Add it to the list & jump to /view
+      this.props.uiStore!.rememberElectronPath(pathToApplication);
+    });
+  };
 
-        if (!pathToApplication) {
-            this.props.closeSelf();
-            return;
-        }
+  async runApplication(pathToApplication: string) {
+    const { activateInterceptor, reportStarted, reportSuccess } = this.props;
 
-        this.runApplication(pathToApplication)
-        .then(() => {
-            // Activated successfully! Add it to the list & jump to /view
-            this.props.uiStore!.rememberElectronPath(pathToApplication);
-        });
-    }
+    reportStarted(); // 'Started' when you pick an app, not when we ask you to pick one.
+    activateInterceptor({ pathToApplication })
+      .then(() => {
+        reportSuccess();
+      })
+      .catch(() => {
+        this.props.uiStore!.forgetElectronPath(pathToApplication);
+      });
+  }
 
-    async runApplication(pathToApplication: string) {
-        const { activateInterceptor, reportStarted, reportSuccess } = this.props;
+  render() {
+    const uiStore = this.props.uiStore!;
+    const { previousElectronAppPaths, forgetElectronPath } = uiStore;
 
-        reportStarted(); // 'Started' when you pick an app, not when we ask you to pick one.
-        activateInterceptor({ pathToApplication })
-        .then(() => {
-            reportSuccess();
-        }).catch(() => {
-            this.props.uiStore!.forgetElectronPath(pathToApplication);
-        });
-    }
+    const binary = getWordForBinary();
+    const binaryArticle = getArticleForBinary(binary);
 
-    render() {
-        const uiStore = this.props.uiStore!;
-        const { previousElectronAppPaths, forgetElectronPath } = uiStore;
+    return (
+      <ConfigContainer>
+        <p>
+          Start an Electron {binary} with HTTP Toolkit's settings injected, to
+          intercept all its HTTP &amp; HTTPS traffic.
+        </p>
+        {platform === "mac" && previousElectronAppPaths.length < 2 && (
+          <p>
+            For .app bundles, enter either the bundle name (with or without
+            .app) or the full path to the executable itself, typically stored in
+            Contents/MacOS inside the bundle.
+          </p>
+        )}
+        <p>
+          {previousElectronAppPaths.length
+            ? `You can also rerun a previously started ${binary}, using the buttons below`
+            : `Once you've run ${binaryArticle} ${binary}, it'll be saved and shown here so you can rerun it later`}
+          .
+        </p>
 
-        const binary = getWordForBinary();
-        const binaryArticle = getArticleForBinary(binary);
+        <Spacer />
 
-        return <ConfigContainer>
-            <p>
-                Start an Electron {binary} with HTTP Toolkit's settings injected,
-                to intercept all its HTTP &amp; HTTPS traffic.
-            </p>
-            {
-                platform === 'mac' && previousElectronAppPaths.length < 2 && <p>
-                    For .app bundles, enter either the bundle name (with or without .app)
-                    or the full path to the executable itself, typically stored in
-                    Contents/MacOS inside the bundle.
-                </p>
-            }
-            <p>
-                {
-                    previousElectronAppPaths.length
-                        ? `You can also rerun a previously started ${binary}, using the buttons below`
-                        : `Once you've run ${binaryArticle} ${binary}, it'll be saved and shown here so you can rerun it later`
-                }.
-            </p>
+        <SelectAndInterceptButton onClick={this.selectApplication}>
+          Select {binaryArticle} {binary}
+        </SelectAndInterceptButton>
 
-            <Spacer />
+        {previousElectronAppPaths.length > 0 && <Hr />}
 
-            <SelectAndInterceptButton onClick={this.selectApplication}>
-                Select { binaryArticle } { binary }
-            </SelectAndInterceptButton>
-
-            { previousElectronAppPaths.length > 0 && <Hr /> }
-
-            { previousElectronAppPaths.map((path) => <RememberedOption key={path}>
-                <InterceptButton title={path} onClick={() => this.runApplication(path)}>
-                    Start { getReadablePath(path) }
-                </InterceptButton>
-                <ForgetPathButton onClick={() => forgetElectronPath(path)}>
-                    <Icon icon={['fas', 'times']} />
-                </ForgetPathButton>
-            </RememberedOption>) }
-        </ConfigContainer>;
-    }
-
+        {previousElectronAppPaths.map((path) => (
+          <RememberedOption key={path}>
+            <InterceptButton
+              title={path}
+              onClick={() => this.runApplication(path)}
+            >
+              Start {getReadablePath(path)}
+            </InterceptButton>
+            <ForgetPathButton onClick={() => forgetElectronPath(path)}>
+              <Icon icon={["fas", "times"]} />
+            </ForgetPathButton>
+          </RememberedOption>
+        ))}
+      </ConfigContainer>
+    );
+  }
 }
 
 export const ElectronCustomUi = {
-    columnWidth: 1,
-    rowHeight: 2,
-    configComponent: ElectronConfig
+  columnWidth: 1,
+  rowHeight: 2,
+  configComponent: ElectronConfig,
 };
